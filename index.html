@@ -1,0 +1,38 @@
+﻿<html>
+<head> 
+<title>测试视频上传页面</title>
+</head>
+
+<body>
+
+<table width="640" height="600"> 
+<tr> <td>
+<div> 
+
+<form method="post" action="http://120.78.156.20:443/upload" enctype="multipart/form-data" >
+    <input name="videofile" type="file"   />
+    <input type="submit" value="上传" /> 
+</form>
+
+
+</div>
+
+ </td></tr>
+ 
+ 
+<tr>
+<td>
+<div height="480">
+<video  controls="controls">
+<source src="video/test.mp4" type="video/mp4" />
+your browser does not support the video tag
+</video>
+</div>
+</td>
+ </tr>
+</table>
+
+</body>
+
+
+</html>
