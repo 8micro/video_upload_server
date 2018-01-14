@@ -23,8 +23,9 @@ var ffmpegPath = flag.String("ffmpeg", "", "ffmpeg path name")
 
 // Request parameters
 const (
-	paramUuid = "qquuid" // uuid
-	paramFile = "qqfile" // file name
+	paramUuid   = "qquuid" // uuid
+	paramFile   = "qqfile" // file name
+	paramUserId = "userid" // userid
 )
 
 // Chunked request parameters
@@ -35,7 +36,7 @@ const (
 	paramTotalParts      = "qqtotalparts"     // total parts
 	paramFileName        = "qqfilename"       // file name for chunked requests
 	paramChunkSize       = "qqchunksize"      // size of the chunks
-	paramUserId          = "userid"
+
 )
 
 type UploadResponse struct {
@@ -90,6 +91,8 @@ func upload(w http.ResponseWriter, req *http.Request) {
 		writeUploadResponse(w, err)
 		return
 	}
+	userId := req.FormValue("userid")
+	log.Printf("upload userid is %v", userId)
 
 	fileDir := fmt.Sprintf("%s/%s", *uploadDir, uuid)
 	if err := os.MkdirAll(fileDir, 0777); err != nil {

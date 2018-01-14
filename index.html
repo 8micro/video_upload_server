@@ -142,7 +142,10 @@ player.play();
             element: document.getElementById("fine-uploader-gallery"),
             template: 'qq-template-gallery',
             request: {
-                endpoint: 'http://120.78.156.20/upload'
+                endpoint: 'http://120.78.156.20/upload',
+				params : {
+					userid:'myuserid'
+				}
             },
             thumbnails: {
                 placeholders: {
