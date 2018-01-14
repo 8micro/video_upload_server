@@ -3,6 +3,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -118,6 +119,8 @@ func upload(w http.ResponseWriter, req *http.Request) {
 	}
 
 	writeUploadResponse(w, nil)
+	log.Printf("upload file %s  to dir %s done ", filename, fileDir)
+	//executeFfprobeCommand()
 }
 
 func delete(w http.ResponseWriter, req *http.Request) {
@@ -140,12 +143,12 @@ func executeFfprobeCommand(filename string, userId string, guid string) ([]byte,
 
 	filePathName := userId + "/" + guid + "/" + filename
 
-	args := fmt.Sprintf("-v error -show_format -show_streams -print_format flat %s", filePathName)
+	args := fmt.Sprintf(" -v error -show_format -show_streams -print_format flat %s", filePathName)
 
 	//ffprobe -v error -show_format -show_streams -print_format flat  test.mp4
 
 	cmd := exec.Command(*ffprobePath, args)
-
+	cmd.Run()
 	data, err := cmd.Output()
 	if err != nil {
 		log.Printf("execute command ffprobe %s  failed", args)
@@ -156,10 +159,12 @@ func executeFfprobeCommand(filename string, userId string, guid string) ([]byte,
 }
 
 func parseFfprobeResult(result []byte) (*VideoInfo, error) {
-
+	return nil, errors.New("test")
 }
 
 func ChunksDoneHandler(w http.ResponseWriter, req *http.Request) {
+	log.Printf("ChunksDoneHandler")
+
 	if req.Method != http.MethodPost {
 		errorMsg := fmt.Sprintf("Method [%s] is not supported", req.Method)
 		http.Error(w, errorMsg, http.StatusMethodNotAllowed)
@@ -335,7 +340,7 @@ func ChunksDoneHandler(w http.ResponseWriter, req *http.Request) {
 				format.tags.creation_time="1970-01-01T00:00:00.000000Z"
 				format.tags.encoder="Lavf53.24.2
 			*/
-			for index, ele := range strLines {
+			for _, ele := range strLines {
 				if strings.Contains(ele, ".width=") {
 					ele_value := strings.Split(ele, "=")
 					if len(ele_value) == 2 {
@@ -408,7 +413,9 @@ func ChunksDoneHandler(w http.ResponseWriter, req *http.Request) {
 
 			}
 
-			//todo call api to tell the videoinfo to db server
+			//todo
+			//1. call api to tell the videoinfo to db server
+			//2. call api to tell split server to split it into splits
 
 		}
 	}
@@ -431,4 +438,6 @@ func writeUploadResponse(w http.ResponseWriter, err error) {
 	}
 	w.Header().Set("Content-Type", "text/plain")
 	json.NewEncoder(w).Encode(uploadResponse)
+
+	log.Printf("upload file done!!")
 }
