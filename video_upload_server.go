@@ -18,7 +18,7 @@ import (
 var port = flag.Int("p", 8080, "Port number to listen to, defaults to 8080")
 var uploadDir = flag.String("d", "uploads", "Upload directory, defaults to 'uploads'")
 
-var ffprobePath = flag.String("ffprobe", "", "ffprobe path name")
+var ffprobePath = flag.String("ffprobe", "/data/web/ffmpeg_ubuntu/ffmpeg-git-20171206-64bit-static/ffprobe", "ffprobe path name")
 var ffmpegPath = flag.String("ffmpeg", "", "ffmpeg path name")
 
 // Request parameters
@@ -123,6 +123,8 @@ func upload(w http.ResponseWriter, req *http.Request) {
 
 	writeUploadResponse(w, nil)
 	log.Printf("upload file %s  to dir %s done ", filename, fileDir)
+
+	GetVideoBasicInfo(filename, userId, uuid)
 	//executeFfprobeCommand()
 }
 
@@ -151,18 +153,58 @@ func executeFfprobeCommand(filename string, userId string, guid string) ([]byte,
 	//ffprobe -v error -show_format -show_streams -print_format flat  test.mp4
 
 	cmd := exec.Command(*ffprobePath, args)
-	cmd.Run()
-	data, err := cmd.Output()
+	err := cmd.Run()
+	//data, err2 = cmd.Output()
 	if err != nil {
-		log.Printf("execute command ffprobe %s  failed", args)
+		log.Printf("execute command ffprobe %s  failed ", args)
 		return nil, fmt.Errorf("execute command ffprobe %s  failed", args)
 	}
 
-	return data, nil
+	return nil, nil
 }
 
 func parseFfprobeResult(result []byte) (*VideoInfo, error) {
 	return nil, errors.New("test")
+}
+
+func GetVideoBasicInfo(filePathname string, userId string, guid string) {
+	fullPathName := "/data/web/" + filePathname
+	args := fmt.Sprintf("  -v error -show_format -show_streams -print_format flat %s", fullPathName)
+	scriptFilePathname := fmt.Sprintf("/tmp/%s.sh", userId)
+	f, err0 := os.Create(scriptFilePathname)
+	if err0 != nil {
+		log.Printf("create script file error")
+		return
+	}
+	scriptHeader := "#!/bin/bash\n"
+
+	_, err1 := f.Write([]byte(scriptHeader))
+	if err1 != nil {
+		log.Printf("write script header failed")
+		return
+	}
+	scripts := *ffprobePath + args
+
+	_, err2 := f.Write([]byte(scripts))
+	f.Close()
+
+	err3 := os.Chmod(scriptFilePathname, 777)
+	if err3 != nil {
+		log.Printf("change script privellege failed")
+		return
+	}
+
+	cmd := exec.Command(scriptFilePathname)
+	//err := cmd.Run()
+	//if err != nil {
+	//	log.Printf("run ffprobe command : %s failed reason %v", cmd.Args, err.Error())
+	//	return
+	//}
+	data, err2 := cmd.Output()
+	if err2 != nil {
+		log.Printf("execute output is  %v", string(data[:]))
+	}
+	log.Printf("execute output is  %v", string(data[:]))
 }
 
 func ChunksDoneHandler(w http.ResponseWriter, req *http.Request) {
