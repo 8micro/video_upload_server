@@ -2,6 +2,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -39,6 +40,24 @@ const (
 	paramChunkSize       = "qqchunksize"      // size of the chunks
 
 )
+
+//send info to split server
+const (
+	splitServerURL = "http://127.0.0.1:7745/split_video"
+)
+
+type SplitInfo struct {
+	UserID        string `json:"userid"`       // user id
+	UUID          string `json:"uuid"`         //file upload uuid
+	FilePathName  string `json:"filepathname"` //full path name
+	FileDir       string `json:"filedir"`      // file dir
+	FileName      string `json:"filename"`     //file name
+	VideoHeight   string `json:videoheight`
+	VideoWidth    string `json:"videowidth"`
+	VideoRate     string `json:"videorate"`
+	VideoDuration string `json:"videoDuration"`
+	VideoFileSize string `json:"videofilesize"`
+}
 
 type UploadResponse struct {
 	Success      bool   `json:"success"`
@@ -99,6 +118,38 @@ func GetFilePathNameAndPath(userId string, uuid string, filename string) (string
 	return filePathName, filePath
 }
 
+func PostSplitRequest(userId string, fileName string, filedir string, fileFullPathName string, uuid string, vinfo VideoInfo) {
+	var info SplitInfo
+	info.FileDir = filedir
+	info.FilePathName = fileFullPathName
+	info.UserID = userId
+	info.UUID = uuid
+	info.FileName = fileName
+	info.VideoDuration = vinfo.Duration
+	info.VideoFileSize = vinfo.Size
+	info.VideoHeight = vinfo.VideoHeight
+	info.VideoWidth = vinfo.VideoWidth
+	info.VideoRate = vinfo.Rate
+	json_bytes, err0 := json.Marshal(info)
+	if err0 != nil {
+		log.Printf("marshal json failed \n")
+		return
+	}
+	body := bytes.NewBuffer([]byte(json_bytes))
+
+	log.Printf("post split request body %v", body)
+
+	resp, err1 := http.Post(splitServerURL, "application/json;charset=utf-8", body)
+	if err1 != nil {
+		log.Printf("post request to split server failed %v", err1.Error())
+		return
+	}
+	if resp.Status == "200 OK" {
+		log.Printf("push ok")
+	}
+
+}
+
 func upload(w http.ResponseWriter, req *http.Request) {
 	uuid := req.FormValue(paramUuid)
 	if len(uuid) == 0 {
@@ -144,7 +195,14 @@ func upload(w http.ResponseWriter, req *http.Request) {
 	writeUploadResponse(w, nil)
 	log.Printf("upload file %s  to dir %s done ", filename, filePathName)
 
-	GetVideoBasicInfo(filePathName, userId, uuid)
+	vinfo, err2 := GetVideoBasicInfo(filePathName, userId, uuid)
+	if err2 != nil {
+		log.Printf("GetVideoBasicInfo failed")
+		return
+	}
+
+	PostSplitRequest(userId, filename, fileDir, filePathName, uuid, vinfo)
+
 	//executeFfprobeCommand()
 }
 
@@ -164,28 +222,28 @@ func parseFfprobeResult(result []byte) (*VideoInfo, error) {
 	return nil, errors.New("test")
 }
 
-func GetVideoBasicInfo(filePathname string, userId string, guid string) {
+func GetVideoBasicInfo(filePathname string, userId string, guid string) (VideoInfo, error) {
 	fullPathName := filePathname
 	args := fmt.Sprintf("  -v error -show_format -show_streams -print_format flat %s", fullPathName)
-
+	var vinfo VideoInfo
 	scriptFilePath := fmt.Sprintf("/tmp/videoscripts/%s/", userId)
 	err := os.MkdirAll(scriptFilePath, 0777)
 	if err != nil {
 		log.Println("create script dir failed %v", scriptFilePath)
-		return
+		return vinfo, errors.New("create script dir failed")
 	}
 	scriptFilePathname := fmt.Sprintf("/tmp/%s.sh", userId)
 	f, err0 := os.Create(scriptFilePathname)
 	if err0 != nil {
 		log.Printf("create script file error")
-		return
+		return vinfo, errors.New("create script file error failed")
 	}
 	scriptHeader := "#!/bin/bash\n"
 
 	_, err1 := f.Write([]byte(scriptHeader))
 	if err1 != nil {
 		log.Printf("write script header failed")
-		return
+		return vinfo, errors.New("write script header failed")
 	}
 	scripts := *ffprobePath + args
 
@@ -195,7 +253,7 @@ func GetVideoBasicInfo(filePathname string, userId string, guid string) {
 	err3 := os.Chmod(scriptFilePathname, 777)
 	if err3 != nil {
 		log.Printf("change script privellege failed")
-		return
+		return vinfo, errors.New("change script privellege failed")
 	}
 
 	cmd := exec.Command(scriptFilePathname)
@@ -203,10 +261,11 @@ func GetVideoBasicInfo(filePathname string, userId string, guid string) {
 	if err2 != nil {
 		log.Printf("execute output is  %v", string(data[:]))
 	}
-	ParseVideoInfoStr(string(data[:]))
+	vinfo = ParseVideoInfoStr(string(data[:]))
+	return vinfo, nil
 }
 
-func ParseVideoInfoStr(strData string) {
+func ParseVideoInfoStr(strData string) VideoInfo {
 	strLines := strings.Split(strData, "\n")
 	var videoInfo VideoInfo
 
@@ -260,10 +319,7 @@ func ParseVideoInfoStr(strData string) {
 	}
 
 	log.Printf("analyze video info %v", videoInfo)
-
-	//todo
-	//1. call api to tell the videoinfo to db server
-	//2. call api to tell split server to split it into splits
+	return videoInfo
 }
 
 func executeFfprobeCommand(filename string, userId string, guid string) ([]byte, error) {
