@@ -114,7 +114,7 @@ func GetFilePathNameAndPath(userId string, uuid string, filename string) (string
 	//upload/138483/9a3c83eb-2560-42df-b9d7-901b54b5161f/138483-20180101-testvideo.mp4
 	filePathName := fmt.Sprintf("%s/%s/%s/%s-%s-%s-%s", *uploadDir, userId, uuid, uuid, userId, recvTime, filename)
 	filePath := fmt.Sprintf("%s/%s/%s/", *uploadDir, userId, uuid)
-	log.Println("file path: %v filepathname %v", filePath, filePathName)
+	log.Printf("file path: %v filepathname %v", filePath, filePathName)
 	return filePathName, filePath
 }
 
@@ -163,7 +163,7 @@ func upload(w http.ResponseWriter, req *http.Request) {
 		writeUploadResponse(w, err)
 		return
 	}
-	log.Printf("file headers : %v \n", headers)
+
 	userId := req.FormValue("userid")
 	log.Printf("upload userid is %v", userId)
 
